@@ -20,7 +20,7 @@ a=0
 PROJ_DIR=${DIR_DATA_HOME}
 OUT_DIR=${PROJ_DIR}/derivatives/resampled
 
-# Detect session based on presence of task file
+# Get session 
 for sess in ses-01 ses-02; do
   FUNC_DIR=${PROJ_DIR}/${subject}/${sess}/func
   if [[ -d "$FUNC_DIR" ]]; then
@@ -31,24 +31,13 @@ for sess in ses-01 ses-02; do
   fi
 done
 
-if [[ -z "$session" ]]; then
-  echo "Error: Task '$task' not found in ses-01 or ses-02 for subject $subject"
-  exit 1
-fi
-
 # Count number of runs for the task (exact match, not partial)
 nruns=$(ls ${PROJ_DIR}/${subject}/${session}/func/${subject}_${session}_task-${task}_run-*_bold.nii.gz 2>/dev/null | wc -l)
-
-if [[ "$nruns" -eq 0 ]]; then
-  echo "Error: No runs found for task '$task' in $session"
-  exit 1
-fi
 
 echo "Using $session with $nruns runs for task '$task'"
 
 # Create output directory
 if [[ ! -d $OUT_DIR ]]; then
-  echo "Creating $OUT_DIR folder"
   mkdir -p $OUT_DIR
 else
   echo "$OUT_DIR folder already exists."
@@ -58,7 +47,6 @@ for denoising in nordic nordic_sm4; do
   SOURCE_DIR=${PROJ_DIR}/${subject}/${session}/func
 
   if [[ ! -d $OUT_DIR/${subject}/${session}/${denoising} ]]; then
-    echo "Creating $OUT_DIR/${subject}/${session}/${denoising} folder"
     mkdir -p $OUT_DIR/${subject}/${session}/${denoising}
   else
     echo "$OUT_DIR/${subject}/${session}/${denoising} folder already exists."

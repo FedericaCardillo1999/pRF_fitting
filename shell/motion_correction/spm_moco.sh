@@ -14,34 +14,35 @@
 
 MATLAB_BIN="/cvmfs/hpc.rug.nl/versions/2023.01/rocky8/x86_64/generic/software/MATLAB/2022b-r5/bin/matlab"
 
-PROJ_DIR=/scratch/hb-EGRET-AAA/projects/EGRET+
+PROJ_DIR=/scratch/hb-EGRET-AAA/projects/OVGU
 subject=sub-$1
+
 task=$2
-nruns=$3
 
 SPM_DIR=${PROJ_DIR}/derivatives/spm
 INPUT_DIR=${PROJ_DIR}
+DERIVATIVES=${PROJ_DIR}/derivatives
 
-# Check for session with matching task data
+# Get the session and number of runs
 session=""
+nruns=0
 for ses in 01 02; do
-  test_file=${INPUT_DIR}/${subject}/ses-${ses}/func/${subject}_ses-${ses}_task-${task}_run-1_bold.nii.gz
-  if [[ -f $test_file ]]; then
-    session=$ses
-    echo "Found task ${task} in ses-${session}"
-    break
+  func_dir=${INPUT_DIR}/${subject}/ses-${ses}/func
+  if [ -d "$func_dir" ]; then
+    run_files=$(find "$func_dir" -maxdepth 1 -type f -name "${subject}_ses-${ses}_task-${task}_run-*_bold.nii.gz")
+    count=$(echo "$run_files" | grep -E "/${subject}_ses-${ses}_task-${task}_run-[0-9]+_bold.nii.gz" | wc -l)
+    if [ "$count" -gt 0 ]; then
+      session=$ses
+      nruns=$count
+      echo "Found $nruns run(s) for task ${task} in ses-${session}"
+      break
+    fi
   fi
 done
-
-if [[ -z $session ]]; then
-  echo "Could not find task ${task} in ses-01 or ses-02 for ${subject}"
-  exit 1
-fi
 
 NoMoCo_DIR=${SPM_DIR}/${subject}/ses-${session}/no_moco
 OUT_DIR=${SPM_DIR}/${subject}/ses-${session}/func
 
-# Prepare folders
 mkdir -p $NoMoCo_DIR
 mkdir -p $OUT_DIR
 
@@ -51,38 +52,41 @@ for run in $(seq "$nruns"); do
 done
 
 cd ${PATH_HOME}/programs/cflaminar/shell/motion_correction
-echo "Running spmMoCo on project ${PROJ_DIR}, ${subject}, ses-${session}, task-${task}"
+echo "Running spmMoCo on project ${PROJ_DIR}, ${subject}, ses-${session}, task-${task}, with ${nruns} runs"
 
-# Select correct MATLAB script based on task and number of runs
-if [[ ${nruns} == "2" ]]; then
-    if [[ "$task" == "RET" || "$task" == "RET2" ]]; then
-        $MATLAB_BIN -nodesktop -nodisplay -nosplash -r "main_spmmoco_2runs('${PROJ_DIR}', '$1', '${session}')"
-    elif [[ "$task" == "RestingState" ]]; then
-        $MATLAB_BIN -nodesktop -nodisplay -nosplash -r "main_spmmoco_2runRestingState('EGRET+', '$1', '${session}')"
-    else
-        echo "Task not supported for 2 runs: $task"
-        exit 1
-    fi
-elif [[ ${nruns} == "3" ]]; then
-    $MATLAB_BIN -nodesktop -nodisplay -nosplash -r "main_spmmoco_3runs('${PROJ_DIR}', '$1')"
-elif [[ ${nruns} == "4" ]]; then
-    $MATLAB_BIN -nodesktop -nodisplay -nosplash -r "main_spmmoco_4runs('${PROJ_DIR}', '$1')"
-elif [[ ${nruns} == "5" ]]; then
-    $MATLAB_BIN -nodesktop -nodisplay -nosplash -r "main_spmmoco_5runs('${PROJ_DIR}', '$1')"
-elif [[ ${nruns} == "6" ]]; then
-    $MATLAB_BIN -nodesktop -nodisplay -nosplash -r "main_spmmoco_6runs('${PROJ_DIR}', '$1')"
-else
-    echo "Sorry, I can only process 2 to 6 runs."
+# Launch appropriate MATLAB script
+case "$nruns" in
+    2)
+        if [[ "$task" == "RET" || "$task" == "RET2" ]]; then
+            $MATLAB_BIN -nodesktop -nodisplay -nosplash -r "main_spmmoco_2runs('OVGU', '${subject}', '${session}')"
+        elif [[ "$task" == "RestingState" ]]; then
+            $MATLAB_BIN -nodesktop -nodisplay -nosplash -r "main_spmmoco_2runRestingState('OVGU', '${subject}', '${session}')"
+        else
+            echo "Task not supported for 2 runs: $task"
+            exit 1
+        fi
+        ;;
+    3)
+        $MATLAB_BIN -nodesktop -nodisplay -nosplash -r "main_spmmoco_3runs('OVGU', '${subject}', '${session}')"
+        ;;
+    4)
+        $MATLAB_BIN -nodesktop -nodisplay -nosplash -r "main_spmmoco_4runs('OVGU', '${subject}', '${session}')"
+        ;;
+    5)
+        $MATLAB_BIN -nodesktop -nodisplay -nosplash -r "main_spmmoco_5runs('OVGU', '${subject}', '${session}')"
+        ;;
+    6)
+        $MATLAB_BIN -nodesktop -nodisplay -nosplash -r "main_spmmoco_6runs('OVGU', '${subject}', '${session}')"
+        ;;
+        
+esac
+
+# Check for MoCo output
+if ! ls ${OUT_DIR}/meansub-${1}_ses-${session}_task-${task}_run-1_bold.nii 1> /dev/null 2>&1; then
+    echo "SPM MoCo output not found. Exiting."
     exit 1
 fi
 
-# Wait for MoCo to finish
-until ls ${OUT_DIR}/meansub-${1}_ses-${session}_task-${task}_run-1_bold.nii 1> /dev/null 2>&1; do
-    echo "Waiting for spm MoCo to finish..."
-    sleep 1
-done
-
-echo "✅ SPM MoCo finished. Cleaning directory and compressing files..."
 cd ${OUT_DIR}
 rm -r sub*
 
@@ -95,9 +99,9 @@ gzip -c mean${subject}_ses-${session}_task-${task}_run-1_desc-preproc_bold.nii >
 gzip -c mean${subject}_ses-${session}_task-${task}_run-1_bold.nii > ${subject}_ses-${session}_task-${task}_run-1_boldref.nii.gz
 rm -r *.nii
 
-echo "Preparing coreg folder for manual coregistration."
 mkdir -p ${DERIVATIVES}/coreg/${subject}/ses-${session}/func
 cp ${DERIVATIVES}/spm/${subject}/ses-${session}/func/*.nii.gz ${DERIVATIVES}/coreg/${subject}/ses-${session}/func/
 mkdir -p ${DERIVATIVES}/coreg/${subject}/ses-01/anat
 cp ${INPUT_DIR}/derivatives/denoised/${subject}/ses-01/*T1w.nii.gz ${DERIVATIVES}/coreg/${subject}/ses-01/anat/
-echo "🎉 Finished."
+
+echo "Finished."

@@ -477,40 +477,86 @@ print(f'Best vx r2 iter= {gauss_fitter.iterative_search_params[int(best_vx[0]),-
 
 print(f'Nvx = {np.count_nonzero(gauss_fitter.rsq_mask)} out of {rsq_mask.shape[0]}, {np.count_nonzero(gauss_fitter.rsq_mask)/rsq_mask.shape[0]*100:.1f}%')
 
-
+import os
 import pickle
+from os.path import join as opj
+
+# Determine which session was loaded
+session = "ses-01" if "ses-01" in file_path else "ses-02"
+
 def save_params(model, model_name):
-
-    if rois.__len__()==1:
-        pkl_file = opj(f'{MAIN_PATH}/pRFM/{subject}/ses-01/{denoising}/', f'roi-{rois[0]}_model-{atlas}-{model_name}-{depth}_desc-prf_params_{task}.pkl')       
+    # Build output filename based on number of ROIs and the detected session
+    if len(rois) == 1:
+        pkl_file = opj(
+            MAIN_PATH, 'pRFM', subject, session, denoising,
+            f'roi-{rois[0]}_model-{atlas}-{model_name}-{depth}_desc-prf_params_{task}.pkl'
+        )
     else:
-        pkl_file = opj(f'{MAIN_PATH}/pRFM/{subject}/ses-01/{denoising}/', f'model-{atlas}-{model_name}-{depth}_desc-prf_params_{task}.pkl')                        
+        pkl_file = opj(
+            MAIN_PATH, 'pRFM', subject, session, denoising,
+            f'model-{atlas}-{model_name}-{depth}_desc-prf_params_{task}.pkl'
+        )
 
-    # get parameters given model and stage
-    model=model
-    settings = prf_settings
+    # Extract parameters and predictions
     prf_params = model.iterative_search_params
     pred_tc = gauss_model.return_prediction(
-    mu_x = prf_params[:,0], # x position
-    mu_y = prf_params[:,1], # y position
-    size = prf_params[:,2], # prf size
-    beta = prf_params[:,3], # prf amplitude
-    baseline = prf_params[:,4], # prf baseline (set to 0)
-    hrf_1 = prf_params[:,5],
-    hrf_2 = prf_params[:,6],
+        mu_x=prf_params[:,0],
+        mu_y=prf_params[:,1],
+        size=prf_params[:,2],
+        beta=prf_params[:,3],
+        baseline=prf_params[:,4],
+        hrf_1=prf_params[:,5],
+        hrf_2=prf_params[:,6],
     )
-
-    # write a pickle-file with relevant outputs
-    out_dict = {}
-    out_dict['model'] = model
-    out_dict['settings'] = settings
-    out_dict['pred_tc'] = pred_tc
-    out_dict['rois_mask'] = rois_mask.data
-    if rois.__len__()==1:
+    out_dict = {
+        'model': model,
+        'settings': prf_settings,
+        'pred_tc': pred_tc,
+        'rois_mask': rois_mask.data
+    }
+    if len(rois) == 1:
         out_dict['roi_verts'] = roi_verts
 
-    f = open(pkl_file, "wb")
-    pickle.dump(out_dict, f)
-    f.close()
+    os.makedirs(os.path.dirname(pkl_file), exist_ok=True)
+    with open(pkl_file, "wb") as f:
+        pickle.dump(out_dict, f)
+    print(f"Saved PRF params to {pkl_file}")
+
+
+
+#import pickle
+#def save_params(model, model_name):
+
+#    if rois.__len__()==1:
+#        pkl_file = opj(f'{MAIN_PATH}/pRFM/{subject}/ses-01/{denoising}/', f'roi-{rois[0]}_model-{atlas}-{model_name}-{depth}_desc-prf_params_{task}.pkl')       
+#    else:
+#        pkl_file = opj(f'{MAIN_PATH}/pRFM/{subject}/ses-01/{denoising}/', f'model-{atlas}-{model_name}-{depth}_desc-prf_params_{task}.pkl')                        
+
+    # get parameters given model and stage
+#    model=model
+#    settings = prf_settings
+#    prf_params = model.iterative_search_params
+#    pred_tc = gauss_model.return_prediction(
+#    mu_x = prf_params[:,0], # x position
+#    mu_y = prf_params[:,1], # y position
+#    size = prf_params[:,2], # prf size
+#    beta = prf_params[:,3], # prf amplitude
+#    baseline = prf_params[:,4], # prf baseline (set to 0)
+##    hrf_1 = prf_params[:,5],
+#    hrf_2 = prf_params[:,6],
+#    )
+
+    # write a pickle-file with relevant outputs
+#    out_dict = {}
+#    out_dict['model'] = model
+#    out_dict['settings'] = settings
+#    out_dict['pred_tc'] = pred_tc
+#    out_dict['rois_mask'] = rois_mask.data
+#    if rois.__len__()==1:
+#        out_dict['roi_verts'] = roi_verts
+
+#    f = open(pkl_file, "wb")
+#    pickle.dump(out_dict, f)
+#    f.close()
 
 save_params(gauss_fitter, 'nelder-mead')

@@ -13,13 +13,13 @@ from scipy import signal
 # Arguments 
 subject = f"sub-{sys.argv[1]}"
 task = sys.argv[2]
-
+resampling = 'resampled'
 # Settings
 filter = 1
 depth_list = ['GM']
 MAIN_PATH = '/scratch/hb-EGRET-AAA/projects/EGRET+/derivatives'
 
-# --- Auto-detect session
+# Session 
 session = None
 for sess in ["ses-01", "ses-02"]:
     search_pattern = os.path.join(MAIN_PATH, resampling, subject, sess, "nordic", f"{subject}_{sess}_task-{task}_run-*_space-fsnative_hemi-L_desc-nordic_bold_GM.gii")
@@ -31,11 +31,11 @@ if session is None:
     print(f"Error: Task '{task}' not found for {subject} in ses-01 or ses-02")
     sys.exit(1)
 
-# --- Count runs
+# Runs
 run_files = sorted(glob(os.path.join(MAIN_PATH, resampling, subject, session, "nordic", f"{subject}_{session}_task-{task}_run-*_space-fsnative_hemi-L_desc-nordic_bold_GM.gii")))
 nruns = len(run_files)
 
-# --- Process both denoising types
+# Preprocessing
 for denoising in ['nordic', 'nordic_sm4']:
     for depth in depth_list:
         proc_tc_RH = []
@@ -45,10 +45,6 @@ for denoising in ['nordic', 'nordic_sm4']:
             path_L = f'{MAIN_PATH}/resampled/{subject}/{session}/{denoising}/{subject}_{session}_task-{task}_run-{run}_space-fsnative_hemi-L_desc-{denoising}_bold_{depth}.gii'
             path_R = f'{MAIN_PATH}/resampled/{subject}/{session}/{denoising}/{subject}_{session}_task-{task}_run-{run}_space-fsnative_hemi-R_desc-{denoising}_bold_{depth}.gii'
 
-            if not (os.path.exists(path_L) and os.path.exists(path_R)):
-                print(f"Run {run} missing files, skipping...")
-                continue
-                
             proc_tc_L = nib.load(path_L)
             proc_tc_R = nib.load(path_R)
 
@@ -82,17 +78,18 @@ for denoising in ['nordic', 'nordic_sm4']:
                     tc = signal.detrend(tc, axis=0) + mean
                     
                     if task == 'RestingState':
-                        # Bandpass: 0.01–0.1 Hz using 4th-order Butterworth
                         lowcut = 0.01
                         highcut = 0.1
                         f_low = lowcut / nyquist
                         f_high = highcut / nyquist
                         sos = signal.butter(4, [f_low, f_high], btype='bandpass', output='sos')
                     else:
-                        # Highpass only: > 0.006 Hz
                         lowcut = 0.006
                         f_low = lowcut / nyquist
                         sos = signal.butter(8, f_low, btype='highpass', output='sos')
+                
+                    return signal.sosfiltfilt(sos, tc, axis=0)
+
 
                 tc_m_L = highpass(tc_m_L)
                 tc_m_R = highpass(tc_m_R)

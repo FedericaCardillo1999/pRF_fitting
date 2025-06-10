@@ -21,8 +21,8 @@ cd(mybatchpath)
 load('batch_spmmoco_2runs.mat');
 
 % Define session paths
-no_moco_path = [myfilespath 'sub-' subject '/ses-' session '/no_moco'];
-func_path    = [myfilespath 'sub-' subject '/ses-' session '/func'];
+no_moco_path = [myfilespath subject '/ses-' session '/no_moco'];
+func_path    = [myfilespath subject '/ses-' session '/func'];
 
 % Unzip functional files
 cd(no_moco_path);
