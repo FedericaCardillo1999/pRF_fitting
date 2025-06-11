@@ -1,8 +1,9 @@
 # cflaminar
 Preprocessing pipeline for CF analysis across the cortical depth
 
+![plot](https://github.com/mayrabitt/cflaminar/blob/main/overview.png)
 ## In active development
-This package is still in development and its API might change. 
+This package is still in development and its API might change.
 
 ## Preprocessing
 
@@ -100,10 +101,10 @@ Outputs:
   qsub -V job_spmmoco.sh 001 ret 1 1 #'[subject] [task] [session] [run]'
 ```
 Outputs:
-TODO: generate .nii.gz, remove (r)sub, copy to fmriprep/../../func 
+TODO: generate .nii.gz, remove (r)sub, copy to fmriprep/../../func
       rename meansub file
 
-### ROIs mask (based on the Benson atlas) to 
+### ROIs mask (based on the Benson atlas) to
 ```bash
   qsub -V jobCFLup01_project_benson_ores.sh 001
 ```    
@@ -117,7 +118,7 @@ TODO: generate .nii.gz, remove (r)sub, copy to fmriprep/../../func
 ```
 ### Upsampling boldref
 ```bash
-  qsub -V jobCFLup05_upsampling_boldref_spmmoco.sh 001
+  qsub -V jobCFLup05_upsampling_boldref_spmmoco.sh 001 1 0.8 #'[subject] [session] [new_resolution]'
 ```
 ### Coregistration
 - Run once to create folder structure
@@ -137,11 +138,11 @@ TODO: generate .nii.gz, remove (r)sub, copy to fmriprep/../../func
 ```bash
   code utils/vcode_cropping.ipynb
 ```
-### Run Freesurfer on upsampled anatomy 
+### Run Freesurfer on upsampled anatomy
 ```bash
   qsub -V -pe smp 16 job_freesurferHires.sh 16 001
 ```
-### Benson hires 
+### Benson hires
 ```bash
   conda activate mypy311 #environment where neuropythy is installed
   qsub -V job_project_benson_hires.sh 001
@@ -161,14 +162,14 @@ TODO: generate .nii.gz, remove (r)sub, copy to fmriprep/../../func
 ## Post-processing
 ### Temporal denoising
 ```bash
-  code /Postproc/psc.ipynb #adjust subject, denoising and depth
+  code /pRF_fitting/psc.ipynb #adjust subject, denoising and depth
 ```
 Outputs:
 /derivatives/pRFM/{denoising}/*.npy  
 
 ### Import subject to pycortex database
 ```bash
-  code /Postproc/import_fmriprepsubj.ipynb #adjust subject_id
+  code /pRF_fitting/import_fmriprepsubj.ipynb #adjust subject_id
 ```
 Outputs:
 /derivatives/pRFM/{denoising}/*.npy  
